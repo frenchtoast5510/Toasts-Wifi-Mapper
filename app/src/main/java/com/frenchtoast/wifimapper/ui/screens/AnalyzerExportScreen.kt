@@ -2,6 +2,7 @@ package com.frenchtoast.wifimapper.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,15 +32,15 @@ import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -63,6 +64,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.GlassBorderColor
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import com.example.ui.theme.SignalColors
 import com.frenchtoast.wifimapper.domain.model.ChannelCongestionBin
@@ -70,6 +72,8 @@ import com.frenchtoast.wifimapper.domain.model.NetworkSortOrder
 import com.frenchtoast.wifimapper.domain.model.WifiAccessPointSummary
 import com.frenchtoast.wifimapper.domain.model.WifiBand
 import com.frenchtoast.wifimapper.platform.android.SafExporter
+import com.frenchtoast.wifimapper.ui.components.GlassCard
+import com.frenchtoast.wifimapper.ui.components.GlassSurface
 import com.frenchtoast.wifimapper.ui.state.ExportFormat
 import com.frenchtoast.wifimapper.ui.state.WifiMapperUiState
 
@@ -112,7 +116,6 @@ fun AnalyzerExportScreen(
     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
     verticalArrangement = Arrangement.spacedBy(14.dp),
   ) {
-    // Channel Congestion Analyzer Card
     item {
       ChannelCongestionCard(
         selectedBand = uiState.channelBand,
@@ -121,7 +124,6 @@ fun AnalyzerExportScreen(
       )
     }
 
-    // Export Datasets Card
     item {
       ExportDatasetsCard(
         readingsCount = uiState.activeWalkReadings.size,
@@ -138,7 +140,6 @@ fun AnalyzerExportScreen(
       )
     }
 
-    // Saved Walks & Indoor Surveys Manager
     item {
       SavedWorkspacesCard(
         uiState = uiState,
@@ -150,31 +151,42 @@ fun AnalyzerExportScreen(
       )
     }
 
-    // Search & Sort Header for Discovered Networks
     item {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
           text = "Discovered Networks (${uiState.filteredSummaries.size})",
           style = MaterialTheme.typography.titleMedium,
         )
-        OutlinedTextField(
-          value = uiState.filterState.searchQuery,
-          onValueChange = onSearchQueryChange,
-          placeholder = { Text("Filter by SSID, BSSID, or manufacturer…") },
-          leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-          trailingIcon = {
-            if (uiState.filterState.searchQuery.isNotEmpty()) {
-              IconButton(onClick = { onSearchQueryChange("") }) {
-                Icon(Icons.Outlined.Close, contentDescription = "Clear filter")
+        GlassSurface(
+          shape = RoundedCornerShape(20.dp),
+          alpha = 0.72f,
+          shadowElevation = 2.dp,
+          modifier = Modifier.fillMaxWidth(),
+        ) {
+          OutlinedTextField(
+            value = uiState.filterState.searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = { Text("Filter by SSID, BSSID, or manufacturer…") },
+            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+            trailingIcon = {
+              if (uiState.filterState.searchQuery.isNotEmpty()) {
+                IconButton(onClick = { onSearchQueryChange("") }) {
+                  Icon(Icons.Outlined.Close, contentDescription = "Clear filter")
+                }
               }
-            }
-          },
-          singleLine = true,
-          shape = RoundedCornerShape(18.dp),
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("analyzer_search_input"),
-        )
+            },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedBorderColor = Color.Transparent,
+              unfocusedBorderColor = Color.Transparent,
+              focusedContainerColor = Color.Transparent,
+              unfocusedContainerColor = Color.Transparent,
+            ),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("analyzer_search_input"),
+          )
+        }
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
           items(NetworkSortOrder.entries) { order ->
@@ -183,6 +195,15 @@ fun AnalyzerExportScreen(
               onClick = { onSelectSortOrder(order) },
               label = { Text(order.label) },
               shape = RoundedCornerShape(20.dp),
+              border = FilterChipDefaults.filterChipBorder(
+                enabled = true,
+                selected = uiState.sortOrder == order,
+                borderColor = GlassBorderColor,
+              ),
+              colors = FilterChipDefaults.filterChipColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.84f),
+              ),
               modifier = Modifier.testTag("sort_${order.name}"),
             )
           }
@@ -192,9 +213,9 @@ fun AnalyzerExportScreen(
 
     if (uiState.filteredSummaries.isEmpty()) {
       item {
-        Surface(
-          color = MaterialTheme.colorScheme.surfaceContainer,
+        GlassSurface(
           shape = RoundedCornerShape(20.dp),
+          alpha = 0.72f,
           modifier = Modifier.fillMaxWidth(),
         ) {
           Text(
@@ -237,9 +258,9 @@ private fun ChannelCongestionCard(
   onSelectBand: (WifiBand) -> Unit,
 ) {
   val bandOptions = listOf(WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ, WifiBand.BAND_6_GHZ)
-  Card(
+  GlassCard(
     shape = RoundedCornerShape(22.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    alpha = 0.72f,
     modifier = Modifier.fillMaxWidth(),
   ) {
     Column(
@@ -268,7 +289,7 @@ private fun ChannelCongestionCard(
         WifiBand.BAND_6_GHZ -> SignalColors.Band6
         WifiBand.UNKNOWN -> MaterialTheme.colorScheme.primary
       }
-      val trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
+      val trackColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f)
 
       Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Canvas(
@@ -304,7 +325,6 @@ private fun ChannelCongestionCard(
           }
         }
 
-        // Channel numbers row
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
@@ -346,9 +366,9 @@ private fun ExportDatasetsCard(
   onSaveSaf: (ExportFormat) -> Unit,
   onShareSheet: (ExportFormat) -> Unit,
 ) {
-  Card(
+  GlassCard(
     shape = RoundedCornerShape(22.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    alpha = 0.72f,
     modifier = Modifier.fillMaxWidth(),
   ) {
     Column(
@@ -383,6 +403,7 @@ private fun ExportDatasetsCard(
             OutlinedButton(
               onClick = { onSaveSaf(format) },
               contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+              border = BorderStroke(1.dp, GlassBorderColor),
               modifier = Modifier.testTag("export_saf_${format.name}"),
             ) {
               Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -414,9 +435,9 @@ private fun SavedWorkspacesCard(
   onSelectSurvey: (Long) -> Unit,
   onDeleteSurvey: (Long) -> Unit,
 ) {
-  Card(
+  GlassCard(
     shape = RoundedCornerShape(22.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    alpha = 0.72f,
     modifier = Modifier.fillMaxWidth(),
   ) {
     Column(
@@ -442,8 +463,9 @@ private fun SavedWorkspacesCard(
           color = if (isActive) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
           } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
+            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f)
           },
+          border = BorderStroke(1.dp, GlassBorderColor),
           shape = RoundedCornerShape(14.dp),
           modifier = Modifier
             .fillMaxWidth()
@@ -477,8 +499,9 @@ private fun SavedWorkspacesCard(
           color = if (isActive) {
             MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
           } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
+            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f)
           },
+          border = BorderStroke(1.dp, GlassBorderColor),
           shape = RoundedCornerShape(14.dp),
           modifier = Modifier
             .fillMaxWidth()
@@ -516,12 +539,13 @@ private fun NetworkSummaryRow(
   onCenterMapClick: () -> Unit,
 ) {
   val rssiColor = SignalColors.forRssi(ap.peakRssiDbm)
-  Card(
-    shape = RoundedCornerShape(18.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+  val qualityWord = SignalColors.plainQualityLabel(ap.peakRssiDbm)
+  GlassCard(
+    shape = RoundedCornerShape(20.dp),
+    alpha = 0.72f,
     modifier = Modifier
       .fillMaxWidth()
-      .clip(RoundedCornerShape(18.dp))
+      .clip(RoundedCornerShape(20.dp))
       .clickable(onClick = onRowClick)
       .testTag("network_row_${ap.bssid}"),
   ) {
@@ -535,17 +559,24 @@ private fun NetworkSummaryRow(
       Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-          .size(46.dp)
+          .size(48.dp)
           .clip(CircleShape)
           .background(rssiColor.copy(alpha = 0.16f)),
       ) {
-        Text(
-          text = "${ap.peakRssiDbm}",
-          style = MaterialTheme.typography.labelLarge,
-          fontFamily = JetBrainsMonoFontFamily,
-          fontWeight = FontWeight.Bold,
-          color = rssiColor,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+          Text(
+            text = "${ap.peakRssiDbm}",
+            style = MaterialTheme.typography.labelLarge,
+            fontFamily = JetBrainsMonoFontFamily,
+            fontWeight = FontWeight.Bold,
+            color = rssiColor,
+          )
+          Text(
+            text = qualityWord,
+            style = MaterialTheme.typography.labelSmall,
+            color = rssiColor,
+          )
+        }
       }
 
       Column(modifier = Modifier.weight(1f)) {
@@ -578,7 +609,7 @@ private fun NetworkSummaryRow(
           Icon(
             Icons.Outlined.LocationOn,
             contentDescription = "Center map on ${ap.ssid}",
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.secondary,
           )
         }
       }

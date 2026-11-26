@@ -3,30 +3,22 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Color
 import com.frenchtoast.wifimapper.domain.model.SignalTier
 
-// RF Cartography & Toasted Amber brand palette
-val ToastAmberPrimary = Color(0xFFD96B18)
-val ToastAmberLight = Color(0xFFFFB77C)
-val ToastAmberContainer = Color(0xFFFFDCC2)
-val ToastOnAmberContainer = Color(0xFF331400)
+val ToastAmberPrimary = Color(0xFFFF9B42)
+val ToastAmberContainer = Color(0xFF422306)
+val ToastOnAmberContainer = Color(0xFFFFD8B8)
 
-val SlateSecondary = Color(0xFF3F5E75)
-val SlateSecondaryLight = Color(0xFFA7CBE5)
-val SlateContainer = Color(0xFFD1E5F6)
-val SlateOnContainer = Color(0xFF0A1E2D)
+val CyanAccentSecondary = Color(0xFF56CCF2)
+val SlateSecondaryContainer = Color(0xFF172C42)
+val SlateOnContainer = Color(0xFFCDE8FF)
 
-val EmeraldTertiary = Color(0xFF0E9F6E)
-val EmeraldTertiaryLight = Color(0xFF6CE5B5)
-val EmeraldContainer = Color(0xFFC4F7DF)
+val EmeraldTertiary = Color(0xFF10B981)
+val EmeraldContainer = Color(0xFF063B2A)
 
-val ObsidianBg = Color(0xFF0E141B)
-val ObsidianSurface = Color(0xFF131B24)
-val ObsidianSurfaceContainer = Color(0xFF1A2430)
-val ObsidianSurfaceHigh = Color(0xFF222E3D)
-
-val PaperBg = Color(0xFFF6F8FB)
-val PaperSurface = Color(0xFFFFFFFF)
-val PaperSurfaceContainer = Color(0xFFEDF1F7)
-val PaperSurfaceHigh = Color(0xFFE3E9F2)
+val ObsidianBg = Color(0xFF0B0F17)
+val ObsidianSurface = Color(0xFF101622)
+val ObsidianSurfaceContainer = Color(0xFF161F2E)
+val ObsidianSurfaceHigh = Color(0xFF1F2B3E)
+val GlassBorderColor = Color(0x1FFFFFFF)
 
 object SignalColors {
   val StrongGreen = Color(0xFF10B981)
@@ -34,9 +26,9 @@ object SignalColors {
   val WeakCrimson = Color(0xFFE11D48)
   val WeakViolet = Color(0xFF9333EA)
 
-  val Band24 = Color(0xFF3B82F6)
+  val Band24 = Color(0xFF38BDF8)
   val Band5 = Color(0xFF10B981)
-  val Band6 = Color(0xFFA855F7)
+  val Band6 = Color(0xFFC084FC)
 
   fun forRssi(rssiDbm: Int): Color = when {
     rssiDbm >= -60 -> StrongGreen
@@ -51,6 +43,12 @@ object SignalColors {
     SignalTier.WEAK -> WeakCrimson
   }
 
+  fun plainQualityLabel(rssiDbm: Int): String = when {
+    rssiDbm >= -60 -> "Great"
+    rssiDbm >= -75 -> "Okay"
+    else -> "Weak"
+  }
+
   fun heatmapArgb(rssiDbm: Float, alpha: Int = 155): Int {
     val clamped = rssiDbm.coerceIn(-95f, -30f)
     val t = (clamped + 95f) / 65f
@@ -58,30 +56,35 @@ object SignalColors {
     val g: Int
     val b: Int
     when {
-      t >= 0.72f -> { // -48 to -30: deep emerald
+      t >= 0.72f -> {
         r = 16
-        g = 185
-        b = 129
+        g = 195
+        b = 136
       }
-      t >= 0.54f -> { // -60 to -49: bright green-lime blend
+      t >= 0.54f -> {
         val k = (t - 0.54f) / 0.18f
-        r = (132 - k * 116).toInt()
-        g = (204 - k * 19).toInt()
-        b = (22 + k * 107).toInt()
+        r = (140 - k * 124).toInt()
+        g = (212 - k * 17).toInt()
+        b = (28 + k * 108).toInt()
       }
-      t >= 0.31f -> { // -75 to -61: yellow to amber-orange
+      t >= 0.31f -> {
         val k = (t - 0.31f) / 0.23f
-        r = (249 - k * 14).toInt()
-        g = (115 + k * 85).toInt()
-        b = (22).toInt()
+        r = (249 - k * 12).toInt()
+        g = (115 + k * 88).toInt()
+        b = 24
       }
-      else -> { // -95 to -76: violet to crimson
+      else -> {
         val k = t / 0.31f
-        r = (147 + k * 90).toInt()
-        g = (35 + k * 35).toInt()
-        b = (210 - k * 130).toInt()
+        r = (147 + k * 88).toInt()
+        g = (35 + k * 38).toInt()
+        b = (212 - k * 132).toInt()
       }
     }
-    return android.graphics.Color.argb(alpha, r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
+    return android.graphics.Color.argb(
+      alpha.coerceIn(0, 255),
+      r.coerceIn(0, 255),
+      g.coerceIn(0, 255),
+      b.coerceIn(0, 255),
+    )
   }
 }

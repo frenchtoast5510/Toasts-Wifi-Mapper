@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,26 +27,28 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.GlassBorderColor
 import com.example.ui.theme.SignalColors
 import com.frenchtoast.wifimapper.platform.android.PermissionHelper
 import com.frenchtoast.wifimapper.platform.android.PermissionStatusSnapshot
+import com.frenchtoast.wifimapper.ui.components.GlassCard
+import com.frenchtoast.wifimapper.ui.components.GlassSurface
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,18 +67,25 @@ fun PermissionsPrivacyScreen(
   }
 
   Scaffold(
+    containerColor = MaterialTheme.colorScheme.background,
     topBar = {
-      TopAppBar(
-        title = { Text("Permissions & Privacy") },
-        navigationIcon = {
-          IconButton(
-            onClick = onBack,
-            modifier = Modifier.testTag("privacy_back_button"),
-          ) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-          }
-        },
-      )
+      Column {
+        TopAppBar(
+          colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+          ),
+          title = { Text("Permissions & Privacy") },
+          navigationIcon = {
+            IconButton(
+              onClick = onBack,
+              modifier = Modifier.testTag("privacy_back_button"),
+            ) {
+              Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+            }
+          },
+        )
+        HorizontalDivider(thickness = 1.dp, color = GlassBorderColor)
+      }
     },
   ) { innerPadding ->
     Column(
@@ -86,9 +96,10 @@ fun PermissionsPrivacyScreen(
         .padding(horizontal = 16.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-      Surface(
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+      GlassSurface(
         shape = RoundedCornerShape(20.dp),
+        alpha = 0.78f,
+        borderColor = SignalColors.StrongGreen.copy(alpha = 0.4f),
         modifier = Modifier.fillMaxWidth(),
       ) {
         Row(
@@ -99,19 +110,19 @@ fun PermissionsPrivacyScreen(
           Icon(
             Icons.Outlined.Shield,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            tint = SignalColors.StrongGreen,
             modifier = Modifier.size(28.dp),
           )
           Column {
             Text(
               text = "100% Local Offline Storage",
               style = MaterialTheme.typography.titleMedium,
-              color = MaterialTheme.colorScheme.onTertiaryContainer,
+              color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
               text = "Zero cloud accounts, zero analytics, zero telemetry, zero ads. All Wi-Fi scans, GPS tracks, and floor-plan surveys stay inside your on-device Room SQLite database.",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onTertiaryContainer,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
         }
@@ -125,7 +136,7 @@ fun PermissionsPrivacyScreen(
 
       PermissionCard(
         title = "NEARBY_WIFI_DEVICES & CHANGE_WIFI_STATE",
-        granted = snapshot.nearbyWifiGranted && snapshot.wifiStateGranted,
+        granted = snapshot.nearbyWifiGranted && snapshot.wifiStateGranted && snapshot.changeWifiStateGranted,
         description = "Required on Android 13+ (API 33+) to discover nearby Wi-Fi access points and trigger active Wi-Fi sweeps for indoor and outdoor mapping.",
       )
 
@@ -152,6 +163,7 @@ fun PermissionsPrivacyScreen(
             }
             context.startActivity(intent)
           },
+          border = BorderStroke(1.dp, GlassBorderColor),
           modifier = Modifier.weight(1f),
           shape = RoundedCornerShape(16.dp),
         ) {
@@ -161,9 +173,9 @@ fun PermissionsPrivacyScreen(
         }
       }
 
-      Card(
+      GlassCard(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        alpha = 0.72f,
         modifier = Modifier.fillMaxWidth(),
       ) {
         Column(
@@ -190,9 +202,9 @@ private fun PermissionCard(
   granted: Boolean,
   description: String,
 ) {
-  Card(
+  GlassCard(
     shape = RoundedCornerShape(18.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    alpha = 0.72f,
     modifier = Modifier.fillMaxWidth(),
   ) {
     Column(

@@ -149,7 +149,6 @@ object DemoDatasetFactory {
     val sampleSpots = indoorSampleGridPoints()
     val samples = sampleSpots.mapIndexed { idx, (sx, sy) ->
       val dist = hypot((sx - routerX).toDouble(), (sy - routerY).toDouble())
-      // Living room corner suffers heavier multi-wall drop reaching Home Office & Primary Bedroom
       val wallPenalty = when {
         sx > 0.62f && sy > 0.44f -> 18.0
         sx < 0.36f && sy > 0.54f -> 14.0
@@ -210,17 +209,11 @@ object DemoDatasetFactory {
   }
 
   private fun indoorSampleGridPoints(): List<Pair<Float, Float>> = listOf(
-    // Living Room
     0.14f to 0.18f, 0.28f to 0.16f, 0.15f to 0.38f, 0.33f to 0.38f, 0.24f to 0.28f,
-    // Kitchen & Dining
     0.50f to 0.18f, 0.70f to 0.16f, 0.86f to 0.20f, 0.56f to 0.34f, 0.80f to 0.34f,
-    // Central Hallway
     0.42f to 0.52f, 0.50f to 0.54f, 0.59f to 0.54f,
-    // Home Office
     0.14f to 0.64f, 0.28f to 0.64f, 0.14f to 0.84f, 0.29f to 0.84f,
-    // Guest & Bath
     0.44f to 0.74f, 0.56f to 0.74f, 0.50f to 0.86f,
-    // Primary Bedroom
     0.72f to 0.56f, 0.87f to 0.56f, 0.72f to 0.74f, 0.87f to 0.84f, 0.78f to 0.85f,
   )
 }

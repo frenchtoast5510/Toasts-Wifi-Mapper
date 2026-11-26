@@ -1,8 +1,10 @@
 package com.frenchtoast.wifimapper.ui.screens
 
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,7 +37,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CompareArrows
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PanTool
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.PushPin
@@ -44,11 +48,10 @@ import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.ZoomOutMap
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,9 +76,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -84,7 +87,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.GlassBorderColor
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import com.example.ui.theme.SignalColors
 import com.frenchtoast.wifimapper.domain.math.SignalMath
@@ -94,6 +99,9 @@ import com.frenchtoast.wifimapper.domain.model.RoomCoverageBreakdown
 import com.frenchtoast.wifimapper.domain.model.RouterPin
 import com.frenchtoast.wifimapper.domain.model.WifiAccessPointSummary
 import com.frenchtoast.wifimapper.platform.android.FloorPlanImageManager
+import com.frenchtoast.wifimapper.ui.components.GlassCard
+import com.frenchtoast.wifimapper.ui.components.GlassSurface
+import com.frenchtoast.wifimapper.ui.components.SignalQualityLegendPill
 import com.frenchtoast.wifimapper.ui.state.IndoorInteractionMode
 import com.frenchtoast.wifimapper.ui.state.WifiMapperUiState
 import kotlin.math.roundToInt
@@ -146,6 +154,22 @@ fun IndoorFloorPlanScreen(
   var zoom by remember { mutableFloatStateOf(1f) }
   var panOffset by remember { mutableStateOf(Offset.Zero) }
 
+  val bestRunId: Long? = remember(
+    uiState.placementRuns,
+    uiState.activeRun?.id,
+    uiState.comparisonRun?.id,
+    uiState.activeRoomCoverage,
+    uiState.comparisonRoomCoverage,
+  ) {
+    if (uiState.placementRuns.size < 2 || uiState.activeRun == null || uiState.comparisonRun == null) {
+      null
+    } else {
+      val overallA = SignalMath.computeOverallCoverage(uiState.activeRoomCoverage)
+      val overallB = SignalMath.computeOverallCoverage(uiState.comparisonRoomCoverage)
+      if (overallA.strongPercent >= overallB.strongPercent) uiState.activeRun.id else uiState.comparisonRun.id
+    }
+  }
+
   Column(
     modifier = modifier
       .fillMaxSize()
@@ -153,7 +177,33 @@ fun IndoorFloorPlanScreen(
       .padding(horizontal = 14.dp, vertical = 10.dp),
     verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
-    // Placement run switcher + Import / Compare actions
+    GlassSurface(
+      shape = RoundedCornerShape(18.dp),
+      alpha = 0.68f,
+      shadowElevation = 2.dp,
+      modifier = Modifier
+        .fillMaxWidth()
+        .testTag("indoor_tip_banner"),
+    ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+      ) {
+        Icon(
+          imageVector = Icons.Outlined.Lightbulb,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.primary,
+          modifier = Modifier.size(16.dp),
+        )
+        Text(
+          text = "Tap 'Sample', walk to a room, and tap the map to test signal",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurface,
+        )
+      }
+    }
+
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
@@ -169,7 +219,7 @@ fun IndoorFloorPlanScreen(
         Text(
           text = "Target: ${uiState.indoorTargetSsid ?: "All Visible APs"}",
           style = MaterialTheme.typography.labelSmall,
-          color = MaterialTheme.colorScheme.primary,
+          color = MaterialTheme.colorScheme.secondary,
           modifier = Modifier
             .clickable { showTargetPickerDialog = true }
             .padding(vertical = 2.dp),
@@ -184,6 +234,7 @@ fun IndoorFloorPlanScreen(
             )
           },
           contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+          border = BorderStroke(1.dp, GlassBorderColor),
           modifier = Modifier.testTag("indoor_import_photo_button"),
         ) {
           Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -199,17 +250,40 @@ fun IndoorFloorPlanScreen(
       }
     }
 
-    // Saved placement runs chips
     LazyRow(
       horizontalArrangement = Arrangement.spacedBy(8.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
       items(uiState.placementRuns, key = { it.id }) { run ->
+        val isBest = bestRunId == run.id
         FilterChip(
           selected = uiState.activeRun?.id == run.id,
           onClick = { onSelectRun(run.id) },
-          label = { Text(run.name) },
+          label = {
+            Text(if (isBest) "${run.name} · Best" else run.name)
+          },
+          leadingIcon = if (isBest) {
+            {
+              Icon(
+                Icons.Outlined.EmojiEvents,
+                contentDescription = "Best coverage",
+                tint = SignalColors.StrongGreen,
+                modifier = Modifier.size(16.dp),
+              )
+            }
+          } else {
+            null
+          },
           shape = RoundedCornerShape(20.dp),
+          border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = uiState.activeRun?.id == run.id,
+            borderColor = if (isBest) SignalColors.StrongGreen.copy(alpha = 0.55f) else GlassBorderColor,
+          ),
+          colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+          ),
           modifier = Modifier.testTag("indoor_run_chip_${run.id}"),
         )
       }
@@ -239,206 +313,215 @@ fun IndoorFloorPlanScreen(
       }
     }
 
-    // Mode segmented selector
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-      IndoorInteractionMode.entries.forEachIndexed { index, mode ->
-        SegmentedButton(
-          selected = uiState.indoorMode == mode,
-          onClick = { onSetMode(mode) },
-          shape = SegmentedButtonDefaults.itemShape(
-            index = index,
-            count = IndoorInteractionMode.entries.size,
-          ),
-          icon = {
-            val icon = when (mode) {
-              IndoorInteractionMode.INSPECT_PAN -> Icons.Outlined.PanTool
-              IndoorInteractionMode.PLACE_ROUTER -> Icons.Outlined.PushPin
-              IndoorInteractionMode.SAMPLE_HERE -> Icons.Outlined.TouchApp
-            }
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-          },
-          modifier = Modifier.testTag("indoor_mode_${mode.name}"),
-        ) {
-          Text(
-            text = when (mode) {
-              IndoorInteractionMode.INSPECT_PAN -> "Pan"
-              IndoorInteractionMode.PLACE_ROUTER -> "Place Pin"
-              IndoorInteractionMode.SAMPLE_HERE -> "Sample"
+    GlassSurface(
+      shape = RoundedCornerShape(20.dp),
+      alpha = 0.72f,
+      shadowElevation = 2.dp,
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(6.dp),
+      ) {
+        IndoorInteractionMode.entries.forEachIndexed { index, mode ->
+          SegmentedButton(
+            selected = uiState.indoorMode == mode,
+            onClick = { onSetMode(mode) },
+            shape = SegmentedButtonDefaults.itemShape(
+              index = index,
+              count = IndoorInteractionMode.entries.size,
+            ),
+            icon = {
+              val icon = when (mode) {
+                IndoorInteractionMode.INSPECT_PAN -> Icons.Outlined.PanTool
+                IndoorInteractionMode.PLACE_ROUTER -> Icons.Outlined.PushPin
+                IndoorInteractionMode.SAMPLE_HERE -> Icons.Outlined.TouchApp
+              }
+              Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
             },
-            maxLines = 1,
-          )
+            modifier = Modifier.testTag("indoor_mode_${mode.name}"),
+          ) {
+            Text(
+              text = when (mode) {
+                IndoorInteractionMode.INSPECT_PAN -> "Pan"
+                IndoorInteractionMode.PLACE_ROUTER -> "Place Pin"
+                IndoorInteractionMode.SAMPLE_HERE -> "Sample"
+              },
+              maxLines = 1,
+            )
+          }
         }
       }
     }
 
-    // Interactive Floor-Plan Canvas with IDW Heatmap + Draggable Router Pins + Sample Dots
     val aspect = floorPlanBitmap.width.toFloat() / floorPlanBitmap.height.coerceAtLeast(1).toFloat()
-    Card(
+    GlassCard(
       shape = RoundedCornerShape(24.dp),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+      alpha = 0.72f,
       modifier = Modifier.fillMaxWidth(),
     ) {
-      Column {
-        BoxWithConstraints(
-          modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(aspect.coerceIn(0.8f, 1.9f))
-            .clipToBounds()
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-        ) {
-          val containerW = with(LocalDensity.current) { maxWidth.toPx() }
-          val containerH = with(LocalDensity.current) { maxHeight.toPx() }
+      BoxWithConstraints(
+        modifier = Modifier
+          .fillMaxWidth()
+          .aspectRatio(aspect.coerceIn(0.8f, 1.9f))
+          .clipToBounds()
+          .background(MaterialTheme.colorScheme.surfaceContainerLow),
+      ) {
+        val containerW = with(LocalDensity.current) { maxWidth.toPx() }
+        val containerH = with(LocalDensity.current) { maxHeight.toPx() }
 
-          Box(
-            modifier = Modifier
-              .fillMaxSize()
-              .pointerInput(uiState.indoorMode, zoom, panOffset) {
-                detectTransformGestures { _, pan, gestureZoom, _ ->
-                  val newZoom = (zoom * gestureZoom).coerceIn(1f, 4f)
-                  val maxPanX = (containerW * (newZoom - 1f)) / 2f
-                  val maxPanY = (containerH * (newZoom - 1f)) / 2f
-                  zoom = newZoom
-                  panOffset = Offset(
-                    x = (panOffset.x + pan.x).coerceIn(-maxPanX, maxPanX),
-                    y = (panOffset.y + pan.y).coerceIn(-maxPanY, maxPanY),
-                  )
-                }
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(uiState.indoorMode, zoom, panOffset) {
+              detectTransformGestures { _, pan, gestureZoom, _ ->
+                val newZoom = (zoom * gestureZoom).coerceIn(1f, 4f)
+                val maxPanX = (containerW * (newZoom - 1f)) / 2f
+                val maxPanY = (containerH * (newZoom - 1f)) / 2f
+                zoom = newZoom
+                panOffset = Offset(
+                  x = (panOffset.x + pan.x).coerceIn(-maxPanX, maxPanX),
+                  y = (panOffset.y + pan.y).coerceIn(-maxPanY, maxPanY),
+                )
               }
-              .pointerInput(uiState.indoorMode, uiState.activeRun?.id, zoom, panOffset) {
-                detectTapGestures { tapOffset ->
-                  val norm = screenToNormalized(tapOffset, containerW, containerH, zoom, panOffset)
-                  when (uiState.indoorMode) {
-                    IndoorInteractionMode.PLACE_ROUTER -> {
-                      onPlaceOrMoveRouterPin(norm.x, norm.y, null)
-                    }
-                    IndoorInteractionMode.SAMPLE_HERE -> {
-                      onCaptureSample(norm.x, norm.y)
-                    }
-                    IndoorInteractionMode.INSPECT_PAN -> {
-                      val nearest = findNearestSample(norm, uiState.activeRunSamples)
-                      if (nearest != null) onSampleClicked(nearest)
-                    }
+            }
+            .pointerInput(uiState.indoorMode, uiState.activeRun?.id, zoom, panOffset) {
+              detectTapGestures { tapOffset ->
+                val norm = screenToNormalized(tapOffset, containerW, containerH, zoom, panOffset)
+                when (uiState.indoorMode) {
+                  IndoorInteractionMode.PLACE_ROUTER -> {
+                    onPlaceOrMoveRouterPin(norm.x, norm.y, null)
+                  }
+                  IndoorInteractionMode.SAMPLE_HERE -> {
+                    onCaptureSample(norm.x, norm.y)
+                  }
+                  IndoorInteractionMode.INSPECT_PAN -> {
+                    val nearest = findNearestSample(norm, uiState.activeRunSamples)
+                    if (nearest != null) onSampleClicked(nearest)
                   }
                 }
               }
-              .graphicsLayer {
-                scaleX = zoom
-                scaleY = zoom
-                translationX = panOffset.x
-                translationY = panOffset.y
+            }
+            .graphicsLayer {
+              scaleX = zoom
+              scaleY = zoom
+              translationX = panOffset.x
+              translationY = panOffset.y
+            },
+        ) {
+          Image(
+            bitmap = floorPlanBitmap,
+            contentDescription = "Indoor floor plan layout",
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize(),
+          )
+
+          SmoothIndoorHeatmapCanvas(
+            cells = uiState.activeRunHeatmap,
+            modifier = Modifier.fillMaxSize(),
+          )
+
+          val groupedSpots = remember(uiState.activeRunSamples) {
+            uiState.activeRunSamples.groupBy {
+              (it.xNorm * 100).roundToInt() to (it.yNorm * 100).roundToInt()
+            }.values.mapNotNull { list -> list.maxByOrNull { it.rssiDbm } }
+          }
+
+          groupedSpots.forEach { sample ->
+            val dotPxX = sample.xNorm * containerW
+            val dotPxY = sample.yNorm * containerH
+            val dotColor = SignalColors.forRssi(sample.rssiDbm)
+            Box(
+              contentAlignment = Alignment.Center,
+              modifier = Modifier
+                .offset { IntOffset((dotPxX - 18).roundToInt(), (dotPxY - 18).roundToInt()) }
+                .size(36.dp)
+                .clip(CircleShape)
+                .clickable { onSampleClicked(sample) },
+            ) {
+              Surface(
+                color = dotColor,
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.background),
+                shape = CircleShape,
+                shadowElevation = 3.dp,
+                modifier = Modifier.size(15.dp),
+              ) {}
+            }
+          }
+
+          uiState.activeRunPins.forEach { pin ->
+            DraggableRouterMarker(
+              pin = pin,
+              containerW = containerW,
+              containerH = containerH,
+              draggable = uiState.indoorMode == IndoorInteractionMode.PLACE_ROUTER,
+              onMoved = { nx, ny -> onPlaceOrMoveRouterPin(nx, ny, pin.id) },
+            )
+          }
+        }
+
+        SignalQualityLegendPill(
+          modifier = Modifier
+            .align(Alignment.BottomStart)
+            .padding(10.dp),
+        )
+
+        if (zoom > 1.05f || panOffset != Offset.Zero) {
+          GlassSurface(
+            shape = RoundedCornerShape(14.dp),
+            alpha = 0.85f,
+            modifier = Modifier
+              .align(Alignment.TopEnd)
+              .padding(10.dp)
+              .clickable {
+                zoom = 1f
+                panOffset = Offset.Zero
               },
           ) {
-            Image(
-              bitmap = floorPlanBitmap,
-              contentDescription = "Indoor floor plan layout",
-              contentScale = ContentScale.FillBounds,
-              modifier = Modifier.fillMaxSize(),
-            )
-
-            // IDW Heatmap Overlay
-            IndoorHeatmapCanvas(
-              cells = uiState.activeRunHeatmap,
-              modifier = Modifier.fillMaxSize(),
-            )
-
-            // Sample Dots (grouped visually per spot)
-            val groupedSpots = remember(uiState.activeRunSamples) {
-              uiState.activeRunSamples.groupBy {
-                (it.xNorm * 100).roundToInt() to (it.yNorm * 100).roundToInt()
-              }.values.mapNotNull { list -> list.maxByOrNull { it.rssiDbm } }
-            }
-
-            groupedSpots.forEach { sample ->
-              val dotPxX = sample.xNorm * containerW
-              val dotPxY = sample.yNorm * containerH
-              val dotColor = SignalColors.forRssi(sample.rssiDbm)
-              Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                  .offset { IntOffset((dotPxX - 18).roundToInt(), (dotPxY - 18).roundToInt()) }
-                  .size(36.dp)
-                  .clip(CircleShape)
-                  .clickable { onSampleClicked(sample) },
-              ) {
-                Surface(
-                  color = dotColor,
-                  shape = CircleShape,
-                  shadowElevation = 3.dp,
-                  modifier = Modifier.size(16.dp),
-                ) {}
-              }
-            }
-
-            // Draggable Router Pins
-            uiState.activeRunPins.forEach { pin ->
-              DraggableRouterMarker(
-                pin = pin,
-                containerW = containerW,
-                containerH = containerH,
-                draggable = uiState.indoorMode == IndoorInteractionMode.PLACE_ROUTER,
-                onMoved = { nx, ny -> onPlaceOrMoveRouterPin(nx, ny, pin.id) },
-              )
-            }
-          }
-
-          // Zoom reset overlay pill
-          if (zoom > 1.05f || panOffset != Offset.Zero) {
-            Surface(
-              color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-              shape = RoundedCornerShape(14.dp),
-              modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(10.dp)
-                .clickable {
-                  zoom = 1f
-                  panOffset = Offset.Zero
-                },
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+              horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-              ) {
-                Icon(Icons.Outlined.ZoomOutMap, contentDescription = null, modifier = Modifier.size(14.dp))
-                Text("${String.format("%.1f", zoom)}x Reset", style = MaterialTheme.typography.labelSmall)
-              }
+              Icon(Icons.Outlined.ZoomOutMap, contentDescription = null, modifier = Modifier.size(14.dp))
+              Text("${String.format("%.1f", zoom)}x Reset", style = MaterialTheme.typography.labelSmall)
             }
           }
         }
+      }
 
-        // Helper hint footer under canvas
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Text(
-            text = when (uiState.indoorMode) {
-              IndoorInteractionMode.INSPECT_PAN -> "Pinch to zoom · Tap any sample dot to inspect"
-              IndoorInteractionMode.PLACE_ROUTER -> "Tap floor plan to drop a pin · Drag pin to move"
-              IndoorInteractionMode.SAMPLE_HERE -> "Stand in a room & tap where you are to sample RSSI"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-          )
-          Text(
-            text = "${uiState.activeRunSamples.size} pts",
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = JetBrainsMonoFontFamily,
-          )
-        }
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(
+          text = when (uiState.indoorMode) {
+            IndoorInteractionMode.INSPECT_PAN -> "Pinch to zoom · Tap any sample dot to see dBm"
+            IndoorInteractionMode.PLACE_ROUTER -> "Tap floor plan to drop a pin · Drag pin to move"
+            IndoorInteractionMode.SAMPLE_HERE -> "Walk to a spot & tap the floor plan to log signal"
+          },
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.weight(1f),
+        )
+        Text(
+          text = "${uiState.activeRunSamples.size} pts",
+          style = MaterialTheme.typography.labelSmall,
+          fontFamily = JetBrainsMonoFontFamily,
+        )
       }
     }
 
-    // Room Coverage Breakdown Card
     if (uiState.activeRoomCoverage.isNotEmpty()) {
       val overall = SignalMath.computeOverallCoverage(uiState.activeRoomCoverage)
-      Card(
+      val activeIsBest = bestRunId != null && bestRunId == uiState.activeRun?.id
+      GlassCard(
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        alpha = 0.72f,
         modifier = Modifier.fillMaxWidth(),
       ) {
         Column(
@@ -450,9 +533,17 @@ fun IndoorFloorPlanScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
           ) {
-            Text("Coverage Breakdown", style = MaterialTheme.typography.titleMedium)
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              Text("Coverage Breakdown", style = MaterialTheme.typography.titleMedium)
+              if (activeIsBest) {
+                BestCoverageBadge()
+              }
+            }
             Text(
-              text = "${overall.strongPercent}% Strong · ${overall.averageDbm} dBm avg",
+              text = "${overall.strongPercent}% Great · ${overall.averageDbm} dBm",
               style = MaterialTheme.typography.labelSmall,
               fontFamily = JetBrainsMonoFontFamily,
               color = SignalColors.forRssi(overall.averageDbm),
@@ -509,26 +600,59 @@ fun IndoorFloorPlanScreen(
 }
 
 @Composable
-private fun IndoorHeatmapCanvas(
+private fun BestCoverageBadge() {
+  Surface(
+    color = SignalColors.StrongGreen.copy(alpha = 0.2f),
+    border = BorderStroke(1.dp, SignalColors.StrongGreen.copy(alpha = 0.55f)),
+    shape = RoundedCornerShape(10.dp),
+    modifier = Modifier.testTag("best_coverage_badge"),
+  ) {
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(4.dp),
+      modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+    ) {
+      Icon(
+        Icons.Outlined.EmojiEvents,
+        contentDescription = null,
+        tint = SignalColors.StrongGreen,
+        modifier = Modifier.size(13.dp),
+      )
+      Text(
+        text = "Best Coverage",
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = SignalColors.StrongGreen,
+      )
+    }
+  }
+}
+
+@Composable
+private fun SmoothIndoorHeatmapCanvas(
   cells: List<IndoorHeatmapCell>,
   modifier: Modifier = Modifier,
 ) {
-  Canvas(modifier = modifier) {
-    if (cells.isEmpty()) return@Canvas
-    val cols = 36
-    val rows = 26
-    val cellW = size.width / cols
-    val cellH = size.height / rows
-    for (cell in cells) {
-      val colorInt = SignalColors.heatmapArgb(cell.rssiDbm, alpha = 128)
-      val left = cell.xNorm * size.width - cellW * 0.6f
-      val top = cell.yNorm * size.height - cellH * 0.6f
-      drawRect(
-        color = Color(colorInt),
-        topLeft = Offset(left, top),
-        size = Size(cellW * 1.25f, cellH * 1.25f),
-      )
+  val cols = 36
+  val rows = 26
+  val heatmapBitmap = remember(cells) {
+    if (cells.size != cols * rows) {
+      null
+    } else {
+      val pixels = IntArray(cells.size) { idx ->
+        SignalColors.heatmapArgb(cells[idx].rssiDbm, alpha = 122)
+      }
+      Bitmap.createBitmap(pixels, cols, rows, Bitmap.Config.ARGB_8888).asImageBitmap()
     }
+  }
+
+  Canvas(modifier = modifier) {
+    val bmp = heatmapBitmap ?: return@Canvas
+    drawImage(
+      image = bmp,
+      dstSize = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1)),
+      filterQuality = FilterQuality.High,
+    )
   }
 }
 
@@ -570,6 +694,7 @@ private fun DraggableRouterMarker(
     Surface(
       color = MaterialTheme.colorScheme.primary,
       contentColor = MaterialTheme.colorScheme.onPrimary,
+      border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.background),
       shape = CircleShape,
       shadowElevation = 6.dp,
       modifier = Modifier.size(34.dp),
@@ -582,9 +707,9 @@ private fun DraggableRouterMarker(
         )
       }
     }
-    Surface(
-      color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+    GlassSurface(
       shape = RoundedCornerShape(8.dp),
+      alpha = 0.85f,
       shadowElevation = 2.dp,
     ) {
       Text(
@@ -605,7 +730,7 @@ fun RoomCoverageBarRow(room: RoomCoverageBreakdown) {
     ) {
       Text(room.roomName, style = MaterialTheme.typography.labelLarge)
       Text(
-        text = "${room.strongPercent}% Strong · ${room.fairPercent}% Fair · ${room.deadZonePercent}% Dead",
+        text = "${room.strongPercent}% Great · ${room.fairPercent}% Okay · ${room.deadZonePercent}% Weak",
         style = MaterialTheme.typography.labelSmall,
         fontFamily = JetBrainsMonoFontFamily,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -660,6 +785,7 @@ private fun RunComparisonBottomSheet(
   val overallA = SignalMath.computeOverallCoverage(uiState.activeRoomCoverage)
   val overallB = SignalMath.computeOverallCoverage(uiState.comparisonRoomCoverage)
   val aspect = floorPlanBitmap.width.toFloat() / floorPlanBitmap.height.coerceAtLeast(1).toFloat()
+  val aWins = overallA.strongPercent >= overallB.strongPercent
 
   ModalBottomSheet(
     onDismissRequest = onDismiss,
@@ -694,6 +820,7 @@ private fun RunComparisonBottomSheet(
       ) {
         ComparisonMiniMapCard(
           title = runA.name,
+          isBest = aWins,
           overall = overallA,
           floorPlanBitmap = floorPlanBitmap,
           aspect = aspect,
@@ -702,6 +829,7 @@ private fun RunComparisonBottomSheet(
         )
         ComparisonMiniMapCard(
           title = runB.name,
+          isBest = !aWins,
           overall = overallB,
           floorPlanBitmap = floorPlanBitmap,
           aspect = aspect,
@@ -710,26 +838,37 @@ private fun RunComparisonBottomSheet(
         )
       }
 
-      val winner = if (overallA.strongPercent >= overallB.strongPercent) runA.name else runB.name
-      Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
+      val winner = if (aWins) runA.name else runB.name
+      GlassSurface(
         shape = RoundedCornerShape(16.dp),
+        alpha = 0.8f,
+        borderColor = SignalColors.StrongGreen.copy(alpha = 0.45f),
         modifier = Modifier.fillMaxWidth(),
       ) {
-        Text(
-          text = "Best Overall Coverage: $winner",
-          style = MaterialTheme.typography.titleSmall,
-          color = MaterialTheme.colorScheme.onPrimaryContainer,
+        Row(
           modifier = Modifier.padding(14.dp),
-        )
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Icon(
+            Icons.Outlined.EmojiEvents,
+            contentDescription = null,
+            tint = SignalColors.StrongGreen,
+          )
+          Text(
+            text = "Best Coverage: $winner",
+            style = MaterialTheme.typography.titleSmall,
+            color = SignalColors.StrongGreen,
+          )
+        }
       }
 
       Text("Room-by-Room Comparison", style = MaterialTheme.typography.titleMedium)
       uiState.activeRoomCoverage.forEachIndexed { idx, roomA ->
         val roomB = uiState.comparisonRoomCoverage.getOrNull(idx)
-        Card(
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        GlassCard(
           shape = RoundedCornerShape(16.dp),
+          alpha = 0.72f,
           modifier = Modifier.fillMaxWidth(),
         ) {
           Column(
@@ -738,16 +877,16 @@ private fun RunComparisonBottomSheet(
           ) {
             Text(roomA.roomName, style = MaterialTheme.typography.titleSmall)
             Text(
-              text = "${runA.name}: ${roomA.strongPercent}% Strong (${roomA.averageDbm} dBm)",
+              text = "${runA.name}: ${roomA.strongPercent}% Great (${roomA.averageDbm} dBm)",
               style = MaterialTheme.typography.bodySmall,
               fontFamily = JetBrainsMonoFontFamily,
             )
             if (roomB != null) {
               Text(
-                text = "${runB.name}: ${roomB.strongPercent}% Strong (${roomB.averageDbm} dBm)",
+                text = "${runB.name}: ${roomB.strongPercent}% Great (${roomB.averageDbm} dBm)",
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = JetBrainsMonoFontFamily,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.secondary,
               )
             }
           }
@@ -760,15 +899,17 @@ private fun RunComparisonBottomSheet(
 @Composable
 private fun ComparisonMiniMapCard(
   title: String,
+  isBest: Boolean,
   overall: RoomCoverageBreakdown,
   floorPlanBitmap: ImageBitmap,
   aspect: Float,
   cells: List<IndoorHeatmapCell>,
   modifier: Modifier = Modifier,
 ) {
-  Card(
+  GlassCard(
     shape = RoundedCornerShape(18.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    alpha = 0.72f,
+    borderColor = if (isBest) SignalColors.StrongGreen.copy(alpha = 0.6f) else GlassBorderColor,
     modifier = modifier,
   ) {
     Column(
@@ -781,6 +922,9 @@ private fun ComparisonMiniMapCard(
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
       )
+      if (isBest) {
+        BestCoverageBadge()
+      }
       Box(
         modifier = Modifier
           .fillMaxWidth()
@@ -793,10 +937,10 @@ private fun ComparisonMiniMapCard(
           contentScale = ContentScale.FillBounds,
           modifier = Modifier.fillMaxSize(),
         )
-        IndoorHeatmapCanvas(cells = cells, modifier = Modifier.fillMaxSize())
+        SmoothIndoorHeatmapCanvas(cells = cells, modifier = Modifier.fillMaxSize())
       }
       Text(
-        text = "${overall.strongPercent}% Strong · ${overall.deadZonePercent}% Dead",
+        text = "${overall.strongPercent}% Great · ${overall.deadZonePercent}% Weak",
         style = MaterialTheme.typography.labelSmall,
         fontFamily = JetBrainsMonoFontFamily,
         fontWeight = FontWeight.SemiBold,

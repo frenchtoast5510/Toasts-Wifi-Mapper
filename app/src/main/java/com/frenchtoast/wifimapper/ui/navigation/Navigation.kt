@@ -1,6 +1,15 @@
 package com.frenchtoast.wifimapper.ui.navigation
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,7 +22,9 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.HomeWork
 import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -22,15 +33,26 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -38,6 +60,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.ui.theme.GlassBorderColor
+import com.frenchtoast.wifimapper.platform.android.PermissionHelper
+import com.frenchtoast.wifimapper.ui.components.LivePermissionsGateDialog
 import com.frenchtoast.wifimapper.ui.components.ScanThrottlingInfoDialog
 import com.frenchtoast.wifimapper.ui.components.ToastsTopAppBar
 import com.frenchtoast.wifimapper.ui.components.WifiInspectorBottomSheet
@@ -101,10 +126,33 @@ fun ToastsWifiMapperApp(
   val navBackStackEntry by navController.currentBackStackEntryAsState()
   val currentDestination = navBackStackEntry?.destination
   val snackbarHostState = remember { SnackbarHostState() }
+  val context = LocalContext.current
+  val lifecycleOwner = LocalLifecycleOwner.current
+
+  var hasRequestedRuntimePerms by rememberSaveable { mutableStateOf(false) }
+
+  val runtimePermissionLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.RequestMultiplePermissions(),
+  ) {
+    hasRequestedRuntimePerms = true
+    viewModel.refreshPermissions()
+  }
+
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshPermissions()
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose {
+      lifecycleOwner.lifecycle.removeObserver(observer)
+    }
+  }
 
   val isPrivacyScreen = currentDestination?.hasRoute(PrivacyPermissionsRoute::class) == true
   val containerWidthPx = LocalWindowInfo.current.containerSize.width
-  val density = androidx.compose.ui.platform.LocalDensity.current.density
+  val density = LocalDensity.current.density
   val useNavRail = (containerWidthPx / density) >= 600f
 
   LaunchedEffect(uiState.snackbarMessage) {
@@ -116,6 +164,7 @@ fun ToastsWifiMapperApp(
   }
 
   Scaffold(
+    containerColor = MaterialTheme.colorScheme.background,
     contentWindowInsets = WindowInsets(0, 0, 0, 0),
     snackbarHost = {
       SnackbarHost(
@@ -136,29 +185,34 @@ fun ToastsWifiMapperApp(
     },
     bottomBar = {
       if (!isPrivacyScreen && !useNavRail) {
-        NavigationBar {
-          topLevelTabs.forEach { tab ->
-            val selected = currentDestination?.hasRoute(tab.route::class) == true
-            NavigationBarItem(
-              selected = selected,
-              onClick = {
-                navController.navigate(tab.route) {
-                  popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
+        Column {
+          HorizontalDivider(thickness = 1.dp, color = GlassBorderColor)
+          NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+          ) {
+            topLevelTabs.forEach { tab ->
+              val selected = currentDestination?.hasRoute(tab.route::class) == true
+              NavigationBarItem(
+                selected = selected,
+                onClick = {
+                  navController.navigate(tab.route) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                      saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
                   }
-                  launchSingleTop = true
-                  restoreState = true
-                }
-              },
-              icon = {
-                Icon(
-                  imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                  contentDescription = tab.label,
-                )
-              },
-              label = { Text(tab.label) },
-              modifier = Modifier.testTag(tab.testTag),
-            )
+                },
+                icon = {
+                  Icon(
+                    imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                    contentDescription = tab.label,
+                  )
+                },
+                label = { Text(tab.label) },
+                modifier = Modifier.testTag(tab.testTag),
+              )
+            }
           }
         }
       }
@@ -170,7 +224,9 @@ fun ToastsWifiMapperApp(
         .padding(innerPadding),
     ) {
       if (!isPrivacyScreen && useNavRail) {
-        NavigationRail {
+        NavigationRail(
+          containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        ) {
           topLevelTabs.forEach { tab ->
             val selected = currentDestination?.hasRoute(tab.route::class) == true
             NavigationRailItem(
@@ -195,6 +251,7 @@ fun ToastsWifiMapperApp(
             )
           }
         }
+        VerticalDivider(thickness = 1.dp, color = GlassBorderColor)
       }
 
       Box(modifier = Modifier.weight(1f)) {
@@ -300,6 +357,30 @@ fun ToastsWifiMapperApp(
     )
   }
 
+  if (uiState.showPermissionGateDialog && !isPrivacyScreen) {
+    val activity = context.findActivity()
+    val permanentlyDenied = hasRequestedRuntimePerms && activity != null &&
+      PermissionHelper.requiredRuntimePermissions().none { perm ->
+        ActivityCompat.shouldShowRequestPermissionRationale(activity, perm)
+      }
+
+    LivePermissionsGateDialog(
+      shouldOpenSettingsFallback = permanentlyDenied,
+      onGrantPermissions = {
+        runtimePermissionLauncher.launch(PermissionHelper.requiredRuntimePermissions())
+      },
+      onOpenSettings = {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+          data = Uri.fromParts("package", context.packageName, null)
+        }
+        context.startActivity(intent)
+      },
+      onStayInDemoMode = {
+        viewModel.toggleDemoMode(true)
+      },
+    )
+  }
+
   if (uiState.showThrottlingDialog) {
     ScanThrottlingInfoDialog(
       scansUsed = uiState.scanCooldown.scansUsedInWindow,
@@ -308,4 +389,10 @@ fun ToastsWifiMapperApp(
       onDismiss = { viewModel.setShowThrottlingDialog(false) },
     )
   }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+  is Activity -> this
+  is ContextWrapper -> baseContext.findActivity()
+  else -> null
 }

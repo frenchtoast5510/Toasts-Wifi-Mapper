@@ -184,10 +184,6 @@ object SignalMath {
     }
   }
 
-  /**
-   * Collapses raw outdoor readings into quantized spatial heatmap anchors (~12m grid)
-   * retaining peak RSSI per cell for crisp, responsive map overlay rendering.
-   */
   fun computeOutdoorHeatmapPoints(readings: List<WifiReading>): List<OutdoorHeatmapPoint> {
     if (readings.isEmpty()) return emptyList()
     val cellLatStep = 0.00011
@@ -210,10 +206,6 @@ object SignalMath {
       }
   }
 
-  /**
-   * Computes a smooth Inverse Distance Weighting (IDW) grid across normalized [0..1]
-   * floor-plan coordinates from captured indoor Wi-Fi samples.
-   */
   fun computeIndoorHeatmapGrid(
     samples: List<IndoorSample>,
     cols: Int = 36,
@@ -221,7 +213,6 @@ object SignalMath {
     power: Double = 2.4,
   ): List<IndoorHeatmapCell> {
     if (samples.isEmpty()) return emptyList()
-    // Aggregate multiple AP sightings at the exact same spot by taking strongest signal at that spot
     val spotSamples = samples
       .groupBy { (it.xNorm * 100).toInt() to (it.yNorm * 100).toInt() }
       .map { (_, group) ->
@@ -270,7 +261,6 @@ object SignalMath {
     }
 
     val raw = if (weightTotal > 0.0) (weightedSum / weightTotal).toFloat() else -95f
-    // Gentle distance rolloff far from any sampled point so unsampled corners decay realistically
     val farPenalty = ((minDist - 0.30).coerceAtLeast(0.0) * 28.0).toFloat()
     return (raw - farPenalty).coerceIn(-95f, -30f)
   }

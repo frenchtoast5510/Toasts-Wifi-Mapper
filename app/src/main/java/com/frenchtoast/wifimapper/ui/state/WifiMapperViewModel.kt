@@ -89,7 +89,6 @@ data class WifiMapperUiState(
   val mapFocusTarget: GeoCoordinate? = null,
   val mapFocusTriggerId: Long = 0L,
 
-  // Indoor survey state
   val surveys: List<FloorPlanSurvey> = emptyList(),
   val activeSurvey: FloorPlanSurvey? = null,
   val placementRuns: List<PlacementRun> = emptyList(),
@@ -108,11 +107,11 @@ data class WifiMapperUiState(
   val indoorTargetBssid: String? = null,
   val indoorTargetSsid: String? = null,
 
-  // Inspector & Analyzer
   val inspectorAp: WifiAccessPointSummary? = null,
   val channelBand: WifiBand = WifiBand.BAND_2_4_GHZ,
   val channelBins: List<ChannelCongestionBin> = emptyList(),
-  val permissionSnapshot: PermissionStatusSnapshot = PermissionStatusSnapshot(false, false, false, false),
+  val permissionSnapshot: PermissionStatusSnapshot = PermissionStatusSnapshot(false, false, false, false, false),
+  val showPermissionGateDialog: Boolean = false,
   val showThrottlingDialog: Boolean = false,
   val snackbarMessage: String? = null,
 )
@@ -362,6 +361,7 @@ class WifiMapperViewModel(
     val snackbar = args[6] as String?
 
     val bins = SignalMath.computeChannelCongestion(outdoor.allSummaries, chBand)
+    val shouldGateLiveMode = !outdoor.isDemoModeEnabled && !perms.hasAllLivePermissions
 
     WifiMapperUiState(
       isDemoModeEnabled = outdoor.isDemoModeEnabled,
@@ -402,6 +402,7 @@ class WifiMapperViewModel(
       channelBand = chBand,
       channelBins = bins,
       permissionSnapshot = perms,
+      showPermissionGateDialog = shouldGateLiveMode,
       showThrottlingDialog = throttleDialog,
       snackbarMessage = snackbar,
     )
@@ -594,7 +595,6 @@ class WifiMapperViewModel(
     repository.recordScanBatch(walk.id, trackPoint, readings)
   }
 
-  // Filters & search
   fun updateSearchQuery(query: String) {
     filterStateFlow.value = filterStateFlow.value.copy(searchQuery = query)
   }
@@ -635,7 +635,6 @@ class WifiMapperViewModel(
     showThrottlingDialogFlow.value = show
   }
 
-  // Walk management
   fun selectWalk(walkId: Long) {
     viewModelScope.launch {
       prefsStore.setSelectedWalkId(walkId)
@@ -660,7 +659,6 @@ class WifiMapperViewModel(
     }
   }
 
-  // Indoor floor plan & placement runs
   fun setIndoorMode(mode: IndoorInteractionMode) {
     indoorModeFlow.value = mode
   }
@@ -806,7 +804,6 @@ class WifiMapperViewModel(
         }
       }
 
-      // If in Demo Mode (no live Wi-Fi hardware or permission), estimate sample relative to placed Demo Router Pin
       if (uiState.value.isDemoModeEnabled) {
         val pin = uiState.value.activeRunPins.firstOrNull()
         val dist = if (pin != null) {
@@ -841,7 +838,6 @@ class WifiMapperViewModel(
     }
   }
 
-  // Inspector & map centering
   fun openInspector(ap: WifiAccessPointSummary) {
     inspectorApFlow.value = ap
   }

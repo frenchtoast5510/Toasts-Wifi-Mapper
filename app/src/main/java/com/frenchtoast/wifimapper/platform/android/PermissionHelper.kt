@@ -11,12 +11,16 @@ data class PermissionStatusSnapshot(
   val coarseLocationGranted: Boolean,
   val nearbyWifiGranted: Boolean,
   val wifiStateGranted: Boolean,
+  val changeWifiStateGranted: Boolean,
 ) {
   val canMapOutdoors: Boolean
-    get() = fineLocationGranted && nearbyWifiGranted
+    get() = fineLocationGranted && nearbyWifiGranted && changeWifiStateGranted
 
   val canScanIndoors: Boolean
-    get() = fineLocationGranted || nearbyWifiGranted
+    get() = (fineLocationGranted || nearbyWifiGranted) && changeWifiStateGranted
+
+  val hasAllLivePermissions: Boolean
+    get() = fineLocationGranted && nearbyWifiGranted && wifiStateGranted && changeWifiStateGranted
 }
 
 object PermissionHelper {
@@ -30,11 +34,13 @@ object PermissionHelper {
       true
     }
     val wifiState = isGranted(context, Manifest.permission.ACCESS_WIFI_STATE)
+    val changeWifiState = isGranted(context, Manifest.permission.CHANGE_WIFI_STATE)
     return PermissionStatusSnapshot(
       fineLocationGranted = fine,
       coarseLocationGranted = coarse,
       nearbyWifiGranted = nearby,
       wifiStateGranted = wifiState,
+      changeWifiStateGranted = changeWifiState,
     )
   }
 

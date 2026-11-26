@@ -3,6 +3,7 @@ package com.frenchtoast.wifimapper.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.GlassBorderColor
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import com.example.ui.theme.SignalColors
 import com.frenchtoast.wifimapper.domain.math.SignalMath
@@ -69,6 +71,7 @@ fun WifiInspectorBottomSheet(
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
   val context = LocalContext.current
   val signalColor = SignalColors.forRssi(ap.peakRssiDbm)
+  val plainQuality = SignalColors.plainQualityLabel(ap.peakRssiDbm)
   val quality = SignalMath.rssiToNormalizedQuality(ap.peakRssiDbm)
 
   ModalBottomSheet(
@@ -85,7 +88,6 @@ fun WifiInspectorBottomSheet(
         .padding(bottom = 28.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-      // Header row with signal badge & SSID/BSSID
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -94,7 +96,7 @@ fun WifiInspectorBottomSheet(
         Box(
           contentAlignment = Alignment.Center,
           modifier = Modifier
-            .size(56.dp)
+            .size(58.dp)
             .clip(CircleShape)
             .background(signalColor.copy(alpha = 0.16f)),
         ) {
@@ -145,7 +147,6 @@ fun WifiInspectorBottomSheet(
         }
       }
 
-      // Badges row
       FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -160,10 +161,9 @@ fun WifiInspectorBottomSheet(
         )
       }
 
-      // Signal telemetry card
-      Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
+      GlassSurface(
         shape = RoundedCornerShape(20.dp),
+        alpha = 0.72f,
         modifier = Modifier.fillMaxWidth(),
       ) {
         Column(
@@ -186,8 +186,9 @@ fun WifiInspectorBottomSheet(
                 modifier = Modifier.size(18.dp),
               )
               Text(
-                text = "Signal Strength (${SignalMath.rssiToSignalTier(ap.peakRssiDbm).label})",
+                text = "Signal: $plainQuality (${ap.peakRssiDbm} dBm)",
                 style = MaterialTheme.typography.titleSmall,
+                color = signalColor,
               )
             }
             Text(
@@ -211,12 +212,12 @@ fun WifiInspectorBottomSheet(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
           ) {
-            MetricColumn("Peak", "${ap.peakRssiDbm} dBm")
+            MetricColumn("Peak", "${SignalColors.plainQualityLabel(ap.peakRssiDbm)} (${ap.peakRssiDbm} dBm)")
             MetricColumn("Latest", "${ap.latestRssiDbm} dBm")
             MetricColumn("Average", "${ap.averageRssiDbm} dBm")
           }
 
-          HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+          HorizontalDivider(color = GlassBorderColor)
 
           Row(
             modifier = Modifier.fillMaxWidth(),
@@ -245,7 +246,6 @@ fun WifiInspectorBottomSheet(
         }
       }
 
-      // Action buttons
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Button(
           onClick = { onIsolateOnHeatmap(ap.bssid) },
@@ -309,10 +309,11 @@ private fun InspectorSpecPill(
 ) {
   Surface(
     color = if (highlight) {
-      MaterialTheme.colorScheme.primaryContainer
+      MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
     } else {
-      MaterialTheme.colorScheme.surfaceContainerHigh
+      MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f)
     },
+    border = BorderStroke(1.dp, GlassBorderColor),
     shape = RoundedCornerShape(12.dp),
   ) {
     Row(
