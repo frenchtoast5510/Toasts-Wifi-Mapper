@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Toasts Wifi Mapper</string>
+    <string name="tab_outdoor_map">Outdoor</string>
+    <string name="tab_indoor_survey">Indoor</string>
+    <string name="tab_analyzer_export">Networks</string>
+    <string name="demo_mode_label">Demo</string>
+    <string name="hidden_network_label">Hidden Network</string>
+</resources>

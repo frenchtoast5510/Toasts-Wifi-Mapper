@@ -1,0 +1,6 @@
+{
+  "name": "Toasts Wifi Mapper",
+  "description": "Offline-first Android Wi-Fi wardriving, GPS heatmap, indoor floor-plan survey, and channel spectrum analyzer built with Jetpack Compose and Material 3.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
