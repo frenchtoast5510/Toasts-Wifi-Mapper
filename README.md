@@ -1,6 +1,6 @@
 # Toasts Wifi Mapper
 
-An offline-first Android Wi-Fi wardriving, GPS signal heatmap, indoor floor-plan survey, and channel congestion analyzer built with Kotlin, Jetpack Compose, Material 3, Room SQLite, and OpenStreetMap (`osmdroid`).
+Android Wi-Fi wardriving, GPS signal heatmap, indoor floor-plan survey, and channel congestion analyzer built with Kotlin, Jetpack Compose, Material 3, Room SQLite, and OpenStreetMap (`osmdroid`).
 
 ## Features
 
