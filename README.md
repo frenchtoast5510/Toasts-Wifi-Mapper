@@ -51,7 +51,7 @@ gradle assembleDebug
 gradle :app:testDebugUnitTest
 ```
 
-*(Note: AI Studio's `debugConfig` signing configuration is retained in `app/build.gradle.kts` for the container build environment.)*
+*(Note: The Studio `debugConfig` signing configuration is retained in `app/build.gradle.kts` for the container build environment.)*
 
 ## Roadmap
 
